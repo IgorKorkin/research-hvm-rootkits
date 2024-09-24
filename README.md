@@ -4,6 +4,6 @@ Key studies include analyses of different implementations, such as AMD-V, Intel 
 This body of work is crucial for understanding the evolving landscape of cybersecurity threats posed by HVM rootkits and the necessary defenses against them.
 \
 \
-**Hypervisor's Source Code**:
+**Hypervisor's Source Code**
  - [VMXCPU](src-vmm-tools/vmxcpu) - minimal Virtual Machine Monitor by Shawn Embleton
  - [nbp-0.11](src-vmm-tools/nbp-0.11), [nbp-0.32](src-vmm-tools/nbp-0.32-public)- Blue Pill and Blue Chicken with an anti-timing technology by Invisible Things Lab
