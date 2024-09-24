@@ -1,0 +1,30 @@
+TARGETNAME=newbp
+TARGETPATH=bin
+TARGETTYPE=DRIVER
+
+
+SOURCES=\
+    newbp.c \
+    hvm.c \
+    svm.c \
+    vmx.c \
+    portio.c \
+    comprint.c \
+    hypercalls.c \
+    traps.c \
+    svmtraps.c \
+    interrupts.c \
+    common.c \
+    memcloak.c \
+    paging.c \
+    snprintf.c \
+    chicken.c
+
+AMD64_SOURCES=\
+    msr.asm \
+    svm-asm.asm \
+    common-asm.asm \
+    regs.asm \
+    cpuid.asm \
+    intstubs.asm
+

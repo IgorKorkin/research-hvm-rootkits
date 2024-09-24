@@ -1,0 +1,127 @@
+Hooking CPUID – A Virtual Machine Monitor Rootkit Framework
+By: mobydefrag
+
+Hooking CPUID – A Virtual Machine Monitor Rootkit Framework
+
+I am writing this article from inside a Virtual Machine … or perhaps I am not!
+
+One of the fascinating debates taking place around the web is whether or not an OS can detect if it is running inside a VM. Surely a VMM will never be able to fool an external clock but discounting that, who knows?
+
+In any regard, I have written a small VMM that attempts to place the host OS into a VM and then handles the basic subset of unconditional VM-exits. Great. Now what?
+
+Make it available to the public community so they can experiment with it, of course.
+
+
+Firstly, let me stress that the version I am releasing is the very minimal construction necessary for semi-proper operation. This means:
+
+• It makes no attempt to hide the fact that the OS is in a VM
+• It makes no attempt to hide itself from that OS
+• It does not represent production level code
+• It does represent spaghetti level code
+• It carries no warranty that it will not cause your OS to crash and burn
+
+Having said that, it should be significantly easy to modify and provide a starting point for anyone interested in VMM development or just wanting to play around.
+
+The VMM was written using the Intel VT simply because I have a Core 2 Duo. The drivers are written in C and compile with the WDK build utility. Loading the drivers on an AMD processor is very highly undefined.
+
+It works on my system and a few others and hopefully it will work on yours too.
+For compatibility, my system is basically:
+
+• Core 2 Duo 6420 • Crucial PC2-6400
+• Asus P5K Deluxe • Radeon 1950 XT
+• Windows XP SP2 • Windows Vista Ultimate
+
+The interesting drivers/sources (found in the vault):
+
+• vmxcpu0.sys places processor 0 into VMX mode
+• vmxcpu1.sys places processor 1 into VMX mode
+
+A tool like cpu-z will show the CPUID hooking taking place. If you only place one processor into VMX mode, only code run on that processor will be “inside” the VM.
+
+Helpful tools include DbgView and OSR Driver Loader.
+
+Make sure you have DbgView running if you want to see all the driver information.
+
+I didn’t bother writing a loader/unloader because OSR Driver Loader works just fine.
+
+See everyone in Vegas!
+Shawn
+
+Brief Description
+
+Basically, Intel VT technology adds another processor mode called VMX mode. This mode is divided into VMX root and VMX non-root operation. In this example, the VMM runs in VMX root mode while the VM runs in VMX non-root mode.
+
+VMX root mode has access to the new virtualization instructions but even more importantly is able to configure certain events such as interruptions, instructions, I/O port accesses, etc. to cause VM-exits in which control is transferred from the VM to the VMM (called a VM-exit).
+
+Some instructions cause unconditional VM-exits (such as CPUID) and this is how the example works. Following the VM-exit, the VMM handler calls CPUID to fill the EAX register correctly then subverts the Vendor ID by directly writing ECX, EDX and EBX before returning control to the VM through a new virtualization instruction called VMRESUME.
+
+Make sure you have disabled PAE. This release does not support these extensions.
+
+Emulation Table
+
+The following instructions cause VM-exits when they are executed in VMX non-root operation unconditionally: CPUID, INVD, MOV from CR3. This is also true of instructions introduced with VMX, which include: VMCALL, VMCLEAR, VMLAUNCH, VMPTRLD, VMPTRST, VMREAD, VMRESUME, VMWRITE, VMXOFF, and VMXON.
+
+Additionally, a MOV to CR3 causes a VM-exit if a CR3-Targets field is 0 or the value is not in a white list of values. Since the current Intel VT only supports up to 4 targets (and you likely have more tasks running than that), CR3-Targets is set to 0 in the example and thus MOV to CR3 can be considered an unconditional VM-exit.
+
+Execution of a new VMX instruction (such as VMXOFF) on a processor not in VMX mode will be seen as an attempt to execute an illegal instruction. Reboot anyone?
+
+Instruction     Emulated   Operation
+
+CPUID           Yes        EAX==0x00000000?Subvert:Normal
+INVD            Yes        Normal                             *1
+MOV from CR3    Yes        Normal
+MOV to CR3      Yes        Normal
+        
+VMCLEAR         No         Ignored
+VMLAUNCH        No         Ignored
+VMPTRLD         No         Ignored
+VMPTRST         No         Ignored
+VMREAD          No         Ignored
+VMRESUME        No         Ignored
+VMWRITE         No         Ignored
+VMXOFF          No         Ignored
+VMXON           No         Ignored
+        
+RDMSR           Yes        Normal                             *2
+WRMSR           Yes        Normal                             *2
+        
+VMCALL          No         EAX==0x12345678?VMXOFF:Ignored     *3
+
+*1 Quote from Intel manual, “Use this instruction with care.” Go for it.
+
+*2 I didn’t see these instructions causing VM-exits until I last minute tested on a laptop with a Core Duo T2300 processor. It was faster to just emulate them than setting up all the RDMSR and WRMSR bitmaps etc. so they wouldn’t occur.
+
+*3 This instruction is used by the DriverUnload() routine to turn off VMX mode and remove the OS from the VM. It does so only if the EAX register contains the value 0x12345678 otherwise VMCALL is ignored.
+
+EFAQ (Expected Frequently Asked Questions)
+
+(q) Why a separate driver for each processor?
+(a) Good question, I wanted to be able to easily put just one processor into VMX mode without implementing communication with the ring of zero. Laziness.
+
+(q) What if I have more than two processors?
+(a) Simply make a copy of either file and the only change you should need to make is in the 2 KeSetSystemAffinityThread() calls.
+
+(q) Where do I get more detailed information about Intel virtualization?
+(a) Take a look at the Intel System Programming Guide Volume 3B.
+
+(q) How do I know if it is working?
+(a) Try running the cpuid.exe utility included with the release.
+
+(q) It does not appear to be working, what’s wrong?
+(a) Did you disable PAE? Have DbgView running to see the output.
+
+(q) Why is everything in one file and not modularized?
+(a) It’s all eventually one file anyways, I just gave it a head start!
+
+Unsupported
+
+(1) Restart/Shutdown/Sleep will not function properly if driver is loaded.
+(2) Pentium Addressing Extensions support (PAE)
+- Add /noexecute=alwaysoff & /nopae to your boot.ini file.
+
+Limitations of Public Release
+
+(1) Doesn’t attempt to hide the fact that the OS is inside a VM.
+(2) Doesn’t attempt to protect the VMM handler memory.
+(3) Doesn’t attempt to be complete in any other aspect.
+(4) Doesn’t bring you more Coke Zero©.
